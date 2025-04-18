@@ -1,0 +1,226 @@
+import { useEffect, useState } from "react";
+import { io } from "socket.io-client";
+import { Badge } from "./badge";
+import { Button } from "./button";
+import CodeEditor from "./CodeEditor";
+import { useNavigate } from "react-router-dom";
+import axios from 'axios';
+
+const socket = io("http://localhost:5000");
+
+export default function Test() {
+  const navigate = useNavigate();
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [isActive, setIsActive] = useState(false);
+  const [code, setCode] = useState("");
+  const [language, setLanguage] = useState("javascript");
+  const [messages, setMessages] = useState([]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [popupMessage, setPopupMessage] = useState(null);
+  const [surrenderPopupVisible, setSurrenderPopupVisible] = useState(false);
+  const [questions, setQuestions] = useState([]);
+  const [currentQuestion, setCurrentQuestion] = useState(null);
+
+  const surrenderGame = () => {
+    const confirmSurrender = window.confirm("Are you sure you want to surrender?");
+    if (confirmSurrender) {
+      socket.emit('surrender', socket.id);
+    }
+  };
+
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/questions');
+        console.log("Questions fetched:", response.data);
+        setQuestions(response.data.questions); 
+      } catch (error) {
+        console.error("Error fetching questions:", error);
+      }
+    };
+
+    fetchQuestions();
+  }, []);
+
+  useEffect(() => {
+    if (questions.length > 0) {
+      const randomIndex = Math.floor(Math.random() * questions.length);
+      setCurrentQuestion(questions[randomIndex]);
+      console.log("Current Question:", questions[randomIndex]);
+    }
+  }, [questions]);
+
+  useEffect(() => {
+    console.log("Joining game room...");
+    socket.emit('joinGame', 'yourRoomName');
+
+    socket.on('joinedGame', (data) => {
+      console.log(data.message);
+    });
+
+    socket.on('waitForPlayer', (data) => {
+      alert(data.message);
+      navigate('/playground');
+    });
+
+    socket.on('secondPlayerJoined', () => {
+      console.log("Second player has joined the room.");
+    });
+
+    socket.on('receiveMessage', (data) => {
+      console.log("Message received on client:", data.message);
+      if (data.senderId !== socket.id) {
+        setMessages((prev) => [...prev, { text: data.message, senderId: data.senderId }]);
+        setPopupMessage(data.message);
+        setTimeout(() => setPopupMessage(null), 3000);
+      }
+    });
+
+    socket.on('playerSurrendered', (playerId) => {
+      alert(`Player ${playerId} has surrendered. You win!`);
+      navigate('/rank-rating');
+    });
+
+    return () => {
+      socket.off('joinedGame');
+      socket.off('waitForPlayer');
+      socket.off('secondPlayerJoined');
+      socket.off('receiveMessage');
+      socket.off('playerSurrendered');
+    };
+  }, [navigate]);
+
+  const sendMessage = () => {
+    if (inputMessage) {
+      console.log("Sending message:", inputMessage);
+      socket.emit('sendMessage', { message: inputMessage, senderId: socket.id });
+      setMessages((prev) => [...prev, { text: inputMessage, senderId: socket.id }]);
+      setInputMessage('');
+    }
+  };
+
+  useEffect(() => {
+    let timer;
+    if (isActive && timeLeft > 0) {
+      timer = setInterval(() => {
+        setTimeLeft((prevTime) => prevTime - 1);
+      }, 1000);
+    } else if (timeLeft === 0 && isActive) {
+      setIsActive(false);
+    }
+    return () => clearInterval(timer);
+  }, [isActive, timeLeft]);
+
+  const startTimer = () => {
+    setTimeLeft(3600);
+    setIsActive(true);
+  };
+
+  const formatTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const handleCodeSubmit = () => {
+    console.log("Submitted Code: ", code);
+    if (currentQuestion) {
+      const randomIndex = Math.floor(Math.random() * questions.length);
+      setCurrentQuestion(questions[randomIndex]);
+    }
+    setCode("");
+  };
+
+  return (
+    <div className="flex flex-col h-screen bg-background">
+      <main className="flex-1 grid grid-cols-3 gap-6 p-6">
+        <div className="col-span-1 bg-card rounded-lg shadow-md p-6">
+          <div className="flex justify-between mb-4">
+            <h2 className="text-xl font-bold">Current Question</h2>
+            {currentQuestion && (
+              <Badge variant="secondary" className="text-xs">
+                {currentQuestion.difficulty}
+              </Badge>
+            )}
+          </div>
+          <div className="bg-muted rounded-md p-4 text-left">
+            {currentQuestion ? (
+              <>
+                <h3 className="text-lg font-semibold mb-4">{currentQuestion['Question Title']}</h3>
+                <h4 className="text-muted-foreground">{currentQuestion['Question Text']}</h4>
+                <p className="text-muted-foreground my-4"><strong>Tags: </strong> {currentQuestion['Topic Tagged text'] || 'Tags not available'}</p>
+            <p className="text-muted-foreground my-4"><strong>Input:</strong> {currentQuestion['Input']}</p>
+            <p className="text-muted-foreground my-4"><strong>Output:</strong> {currentQuestion['Expected Output'] || 'Output not available'}</p>
+
+              </>
+            ) : (
+              <p>Loading question...</p> 
+            )}
+          </div>
+        </div>
+
+        <div className="col-span-2 bg-card rounded-lg shadow-md p-6 relative">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold">Code Editor</h2>
+            <div className="flex items-center">
+              <Button variant="outline" size="sm" onClick={surrenderGame} className="bg-red-500 text-white">
+                Surrender
+              </Button>
+              <div>Time: <span className="text-blue-700">{formatTime(timeLeft)}</span></div>
+              <Button variant="outline" size="sm" onClick={startTimer}>
+                Start Timer
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleCodeSubmit}>
+                Submit Code
+              </Button>
+            </div>
+          </div>
+          <CodeEditor language={language} value={code} onChange={setCode} />
+        </div>
+
+        <div className="col-span-3 bg-card rounded-lg shadow-md p-6 flex flex-col">
+          <h2 className="text-xl font-bold mb-4">Chat</h2>
+          <div className="flex-1 overflow-y-auto border border-muted rounded-lg p-4 mb-4">
+            {messages.map((msg, index) => (
+              <div
+                key={index}
+                className={`mb-2 p-2 rounded-lg ${msg.senderId === socket.id ? "bg-green-200" : "bg-gray-200"}`}
+              >
+                {msg.text}
+              </div>
+            ))}
+          </div>
+          <div className="flex">
+            <input
+              type="text"
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              className="flex-1 border border-muted rounded-lg p-2 mr-2"
+              placeholder="Type your message..."
+            />
+            <Button onClick={sendMessage}>Send</Button>
+          </div>
+        </div>
+      </main>
+
+      {surrenderPopupVisible && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-4 rounded-md">
+            <h3 className="text-lg font-bold">Surrender</h3>
+            <p>Are you sure you want to surrender?</p>
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={() => setSurrenderPopupVisible(false)}>Cancel</Button>
+              <Button variant="danger" onClick={surrenderGame}>Surrender</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {popupMessage && (
+        <div className="fixed bottom-4 right-4 bg-gray-800 text-white p-3 rounded-md">
+          {popupMessage}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,32 @@
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background-color: #312c2c;
+  border: 1px solid #9f9ffa;
+  height: 33px;
+}
+
+.navbar-left h1 {
+  font-family: 'Arial', sans-serif; 
+  font-size: 21px; 
+  color: #ffffff; 
+}
+
+.navbar-right a {
+  font-family: 'Verdana', sans-serif; 
+  font-size: 19px; 
+  color: #ffffff;
+  text-decoration: none; 
+  margin-left: 60px; 
+  transition: color 0.2s ease; 
+}
+
+.navbar-right a:hover {
+  color: #ffcc00; /* Hover color */
+}
+
+.navbar-right a:active {
+  color: #ffcc00; /* Active link color */
+}

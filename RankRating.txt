@@ -1,0 +1,72 @@
+import React from 'react';
+import './RankRating.css'; // Optional: for custom styles
+
+const RankRating = () => {
+  // Sample data: Replace this with actual data from your server or state
+  const players = [
+    { rank: 1, name: 'Player 1', score: 1500 },
+    { rank: 2, name: 'Player 2', score: 1200 },
+    { rank: 3, name: 'Player 3', score: 900 },
+    { rank: 4, name: 'Player 4', score: 700 },
+    { rank: 5, name: 'Player 5', score: 500 },
+  ];
+
+  return (
+    <div className="rank-rating-container">
+      <h2>Rank Rating Page</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Name</th>
+            <th>Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          {players.map(player => (
+            <tr key={player.rank}>
+              <td>{player.rank}</td>
+              <td>{player.name}</td>
+              <td>{player.score}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+export default RankRating;
+
+
+
+
+
+
+
+
+.rank-rating-container {
+    padding: 20px;
+    font-family: Arial, sans-serif;
+  }
+  
+  h2 {
+    text-align: center;
+  }
+  
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+  }
+  
+  th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: center;
+  }
+  
+  th {
+    background-color: #f2f2f2;
+  }
+  

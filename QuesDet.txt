@@ -1,0 +1,209 @@
+import { useParams, useNavigate } from "react-router-dom";
+import { useEffect, useState, useRef } from "react";
+import { Button } from "./button"; 
+import { Badge } from "./badge";
+import CodeEditor from "./CodeEditor";
+import axios from 'axios';
+import { executeCode } from './api';
+
+const socket = io("http://localhost:5000");
+
+
+export default function QuestionDetail() {
+  const [question, setQuestion] = useState(null);
+  const [expectedOutput, setExpectedOutput] = useState(null);
+  const { id } = useParams(); 
+  const navigate = useNavigate();
+  const [code, setCode] = useState(''); 
+  const [language, setLanguage] = useState('javascript'); // Default language
+  const editorRef = useRef(null);
+  
+  const [output, setOutput] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isError, setIsError] = useState(false);
+  const [comparisonResult, setComparisonResult] = useState(null);
+  const [showPopup, setShowPopup] = useState(false);
+
+  const [timeLeft, setTimeLeft] = useState(0); 
+  const [isTimerRunning, setIsTimerRunning] = useState(false); 
+
+    const surrenderGame = () => {
+    const confirmSurrender = window.confirm("Are you sure you want to surrender?");
+    if (confirmSurrender) {
+      socket.emit('surrender', socket.id);
+    }
+  };
+
+  useEffect(() => {
+    const fetchQuestion = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/questions');
+        if (response.data.questions) {
+          const foundQuestion = response.data.questions.find(q => q._id === id);
+          if (foundQuestion) {
+            setQuestion(foundQuestion);
+            setExpectedOutput(foundQuestion['Expected Output']);
+          } else {
+            console.error("Question not found for ID:", id);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching questions:", error);
+      }
+    };
+  
+    fetchQuestion();
+  }, [id]);
+
+  const normalizeOutput = (output) => {
+    if (!output) return ''; // Handle undefined or null output
+
+    return output
+        .trim() // Remove leading/trailing whitespace
+        .toLowerCase() // Normalize to lowercase
+        .replace(/\s+/g, ' ') // Replace multiple spaces with a single space
+        .replace(/[\n\r]+/g, ' ') // Remove newlines
+        .replace(/[^a-z0-9 ]/g, '') // Remove non-alphanumeric characters (except spaces)
+        .replace(/\b(true|false|yes|no|1|0)\b/g, match => match === 'true' || match === '1' || match === 'yes' ? 'true' : 'false'); // Normalize boolean representations
+    };
+
+  const runCode = async () => {
+    const sourceCode = editorRef.current.getValue();
+    if (!sourceCode) return;
+    try {
+        setIsLoading(true);
+        const { run: result } = await executeCode(language, sourceCode);
+        setOutput(result.output.split("\n"));
+        setIsError(!!result.stderr);
+
+        if (expectedOutput) {
+            const userOutput = normalizeOutput(result.output);
+            const expected = normalizeOutput(expectedOutput);
+            if (userOutput === expected) {
+                setComparisonResult("Correct! Your output matches the expected output.");
+                setShowPopup(true);
+                // Redirect after a brief delay
+                setTimeout(() => {
+                    navigate('/subject'); // Replace '/next-page' with your desired route
+                }, 4000); // Adjust the delay as needed
+            } else {
+                setComparisonResult(`Incorrect! Your output: "${userOutput}" does not match the expected output: "${expected}".`);
+            }
+        } else {
+            console.error("Expected output is undefined.");
+            setComparisonResult("Expected output is not available.");
+        }
+    } catch (error) {
+        console.error(error);
+        alert(`An error occurred: ${error.message || "Unable to run code"}`);
+    } finally {
+        setIsLoading(false);
+    }
+};
+
+
+  useEffect(() => {
+    let timer;
+    if (isTimerRunning && timeLeft < 60000) { // 1000 minutes max
+      timer = setInterval(() => {
+        setTimeLeft(prev => prev + 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [isTimerRunning, timeLeft]);
+
+  const toggleTimer = () => {
+    setIsTimerRunning(prev => !prev);
+    if (!isTimerRunning) {
+      setTimeLeft(0); // Reset timer if starting again
+    }
+  };
+
+  if (!question) { 
+    return <div>Loading...</div>;
+  }
+
+  return (
+    <div className="flex flex-col h-screen bg-background">
+      <main className="flex-1 grid grid-cols-3 gap-6 p-6">
+        <div className="col-span-1 bg-card rounded-lg shadow-md p-6">
+          <div className="flex justify-between mb-4">
+            <h2 className="text-xl font-bold">Current Question</h2>
+            {question.difficulty && (
+              <Badge variant="secondary" className="text-xs">
+                {question.difficulty}
+              </Badge>
+            )}
+          </div>
+          <div className="bg-muted rounded-md p-4 text-left">
+            <h3 className="text-lg font-semibold mb-4">{question['Question Title']}</h3>
+            <h4 className="text-muted-foreground">{question['Question Text']}</h4>
+            <p className="text-muted-foreground my-4"><strong>Tags: </strong> {question['Topic Tagged text'] || 'Tags not available'}</p>
+            <p className="text-muted-foreground my-4"><strong>Input:</strong> {question['Input']}</p>
+            <p className="text-muted-foreground my-4"><strong>Output:</strong> {question['Expected Output'] || 'Output not available'}</p>
+          </div>
+        </div>
+
+        <div className="col-span-2 bg-card rounded-lg shadow-md p-6 relative">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold">Code Editor</h2>
+            <div className="flex items-center space-x-4">
+              <div>Time Elapsed: <span className="text-blue-700">{Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}</span></div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={toggleTimer} 
+                className={`mr-2 ${isTimerRunning ? "bg-red-600 text-white" : "bg-yellow-500 text-black"}`}
+              >
+                {isTimerRunning ? "Stop Timer" : "Start Timer"}
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={runCode} 
+                className="bg-green-600 text-black"
+              >
+                {isLoading ? "Running..." : "Submit Code"}
+              </Button>
+            </div>
+          </div>
+          <CodeEditor 
+            ref={editorRef} 
+            language={language} // Pass current language
+            onLanguageChange={setLanguage} // Pass the function to change language
+          />
+          <div className="mt-4">
+            {isError && <p className="text-red-600">Error occurred during execution.</p>}
+            <div>
+              <h3>Output:</h3>
+              <pre>{output && output.join("\n")}</pre>
+            </div>
+            <p>{comparisonResult}</p>
+          </div>
+        </div>
+
+        <div className="col-span-3 bg-card rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-bold mb-4">Discussion</h2>
+          <div className="flex flex-col space-y-4">
+            <div className="p-4 border border-muted rounded-lg">
+              <p><strong>JohnDoe123:</strong> This question is tricky; make sure you consider edge cases for empty arrays.</p>
+            </div>
+            <div className="p-4 border border-muted rounded-lg">
+              <p><strong>CoderQueen:</strong> A brute-force approach works here, but it's inefficient. Try using a hash map to reduce time complexity.</p>
+            </div>
+            <div className="p-4 border border-muted rounded-lg">
+              <p><strong>AlgoMaster99:</strong> I found that sorting the array first made it easier to tackle.</p>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {showPopup && ( 
+        <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-4 rounded shadow-lg z-50">
+          <p>{comparisonResult}</p>
+          <p>Redirecting...</p>
+        </div>
+      )}
+    </div>
+  );
+}

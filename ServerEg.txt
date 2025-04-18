@@ -1,0 +1,73 @@
+const rooms = {}; // Track rooms and players
+let roomCounter = 0; // To generate unique room IDs
+
+io.on('connection', (socket) => {
+  console.log('A user connected:', socket.id);
+
+  // Join Game Room Logic
+  socket.on('joinGame', () => {
+    // Create a unique room ID for each pair of players
+    let roomId = null;
+    for (const id in rooms) {
+      if (rooms[id].length < 2) {
+        roomId = id; // Join an existing room if there is space
+        break;
+      }
+    }
+
+    if (!roomId) {
+      roomCounter++; // Increment the room counter for a new room
+      roomId = `gameRoom_${roomCounter}`; // Create a new room ID
+      rooms[roomId] = []; // Initialize the new room
+    }
+    
+    if (!rooms[roomId].includes(socket.id)) {
+      rooms[roomId].push(socket.id); // Add the player to the room
+      socket.join(roomId); // Join the socket to the room
+      console.log(`Player ${socket.id} joined room: ${roomId}. Total players: ${rooms[roomId].length}`);
+      
+      // Notify if room is full
+      if (rooms[roomId].length === 2) {
+        io.to(roomId).emit('secondPlayerJoined'); // Notify players in the room
+        console.log(`Both players are in room ${roomId}`);
+      }
+    } else {
+      console.log(`Player ${socket.id} already in room ${roomId}`);
+    }
+  });
+
+  // Receive and Broadcast Messages
+  socket.on('sendMessage', (message) => {
+    const roomId = Object.keys(rooms).find(id => rooms[id].includes(socket.id));
+    console.log(`Received message from ${socket.id} in room ${roomId}: ${message}`);
+    
+    if (rooms[roomId]) {
+      // Broadcast the message to the room
+      io.to(roomId).emit('receiveMessage', { message, senderId: socket.id }); // Send message details
+      console.log(`Message broadcasted to room ${roomId}`);
+    } else {
+      console.log(`Player ${socket.id} not in room ${roomId}`);
+    }
+  });
+
+  // Handle Surrender
+  socket.on('surrender', () => {
+    const roomId = Object.keys(rooms).find(id => rooms[id].includes(socket.id));
+    if (roomId) {
+      io.to(roomId).emit('playerSurrendered', { senderId: socket.id }); // Notify room of surrender
+      console.log(`Player ${socket.id} surrendered in room ${roomId}`);
+    }
+  });
+
+  // Handle Disconnection
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+    for (const roomId in rooms) {
+      const index = rooms[roomId].indexOf(socket.id);
+      if (index !== -1) {
+        rooms[roomId].splice(index, 1); // Remove player from room
+        if (rooms[roomId].length === 0) delete rooms[roomId]; // Delete room if empty
+      }
+    }
+  });
+});

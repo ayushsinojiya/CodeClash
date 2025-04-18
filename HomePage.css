@@ -1,0 +1,39 @@
+/* Styles for HomePage only */
+.homepage-content {
+    padding-top: 80px; /* To push content below the fixed navbar */
+    background-color: #f9f9f9;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .homepage-content h1 {
+    font-size: 48px;
+    color: #333;
+    margin-bottom: 20px;
+  }
+  
+  .homepage-content p {
+    font-size: 22px;
+    color: #555;
+    margin-bottom: 30px;
+  }
+  
+  .homepage-content button {
+    padding: 12px 24px;
+    font-size: 18px;
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .homepage-content button:hover {
+    background-color: #45a049;
+  }
+  

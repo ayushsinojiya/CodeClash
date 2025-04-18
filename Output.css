@@ -1,0 +1,99 @@
+body{
+  height: 100%;
+  overflow: hidden;
+}
+.output-container {
+  margin-top: -30px;
+  width: 100%; /* Make it take full width within its container */
+  margin-left: -18px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+
+/* .output-container h2 {
+  margin-bottom: 26px; 
+  font-size: 1.25rem; 
+} */
+
+.run-button {
+  position: absolute; /* Position it absolutely within its container */
+  top: 69.5px; /* Adjust top position to your preference */
+  right: 150px; /* Align it to the right */
+  border: 1px solid #4CAF50; /* Green border to match button color */
+  border-radius: 7px;
+  padding: 17.8px 23px;
+  background-color: transparent;
+  color: #4CAF50; /* Green text */
+  cursor: pointer;
+  font-size: 15px;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.run-button:hover {
+  background-color: #4CAF50; /* Green background on hover */
+  color: #fff; /* White text on hover */
+}
+
+.run-button.loading {
+  background-color: #e0e0e0;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.output-box { 
+  width: 97.2%; /* Ensure the output box is full-width */
+  height: 260px;
+  padding: 12px; /* Increase padding slightly */
+  color: #fff;
+  border: 2px solid #9f9ffa;
+  border-radius: 7px;
+  overflow-y: auto;
+  background-color: #1e1e1e;
+}
+
+.output-box.error {
+  color: #f44336;
+  border-color: #f44336;
+}
+
+.output-box p {
+  margin: 0;
+}
+#TCH{
+  background-color: #000;
+  margin-top: -11px;
+ padding-top: 5px;
+ padding-bottom: 5px;
+ margin-left: -11px;
+ margin-right: -10px;
+
+}
+.space{
+  padding: 5px;
+}
+.TCbutton {
+  display: flex;
+ 
+  justify-content: left;
+}
+
+.TCbutton button {
+  background-color: #000;
+  color: white;
+  border: none;
+ padding-top: 2px;
+ padding-bottom: 2px;
+  text-align: center;
+  font-size: 14px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+ 
+}
+
+.TCbutton button:hover {
+  background-color: #333;
+}
